@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Dimensionador de Cabos</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="CaboAço">
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/2343/2343494.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        // Registro do Service Worker para modo Offline
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log("PWA: Service Worker Ativo"))
+                .catch(err => console.log("PWA: Erro no SW", err));
+        }
+    </script>
+</head>
+
+<body class="bg-slate-900 min-h-screen flex items-center justify-center font-sans p-4">
+
+<div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden">
+
+    <div class="bg-blue-600 p-6 text-white text-center">
+        <h1 class="text-xl font-bold uppercase tracking-wider">Dimensionamento</h1>
+        <p class="text-[10px] text-blue-100 mt-1 opacity-80">NORMA NBR ISO 2408 | SEGURANÇA 5:1</p>
+    </div>
+
+    <div class="p-6 space-y-5">
+        
+        <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Carga Total (kgf)</label>
+            <input type="number" id="pesoCarga" placeholder="0" 
+                class="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl focus:border-blue-500 outline-none text-2xl font-bold transition-all">
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Nº de Pernas</label>
+                <select id="pernas" class="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-blue-500 font-bold">
+                    <option value="1">1 Perna</option>
+                    <option value="2" selected>2 Pernas</option>
+                    <option value="4">4 Pernas</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Ângulo Vertical</label>
+                <select id="angulo" class="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none focus:border-blue-500 font-bold">
+                    <option value="0">0°</option>
+                    <option value="30">30°</option>
+                    <option value="45">45°</option>
+                    <option value="60">60°</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-[10px] font-black text-gray-400 uppercase mb-1">Tipo de Alma</label>
+            <div class="flex gap-2">
+                <button onclick="setAlma('AF')" id="btnAF" class="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all">Fibra (AF)</button>
+                <button onclick="setAlma('AA')" id="btnAA" class="flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all">Aço (AA)</button>
+            </div>
+        </div>
+
+        <button onclick="recomendarCabo()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-4 rounded-2xl shadow-lg active:scale-95 transition-all uppercase tracking-widest text-sm">
+            Calcular Cabo Ideal
+        </button>
+
+        <div id="resultado-card" class="hidden mt-4 p-6 rounded-2xl border-2 text-center transition-all animate-in fade-in zoom-in duration-300">
+            <p id="msg-topo" class="text-[10px] font-bold uppercase mb-1"></p>
+            <h2 id="msg-diametro" class="text-4xl font-black"></h2>
+            <p id="msg-detalhe" class="text-xs mt-2 opacity-80"></p>
+            
+            <button onclick="gerarPDF()" id="btnPDF" class="mt-6 w-full bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-xs uppercase">
+                📥 Baixar Laudo Técnico (PDF)
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let almaSelecionada = 'AF';
+    const tabelas = {
+        'AF': {"6.4": [2320, "1/4\""], "8.0": [3610, "5/16\""], "9.5": [5080, "3/8\""], "11.5": [7410, "7/16\""], "13.0": [9480, "1/2\""], "14.5": [11700, "9/16\""], "16.0": [14300, "5/8\""], "19.0": [20100, "3/4\""], "22.0": [26900, "7/8\""], "26.0": [37400, "1\""]},
+        'AA': {"6.4": [2500, "1/4\""], "8.0": [3880, "5/16\""], "9.5": [5460, "3/8\""], "11.5": [7960, "7/16\""], "13.0": [10200, "1/2\""], "14.5": [12600, "9/16\""], "16.0": [15400, "5/8\""], "19.0": [21600, "3/4\""], "22.0": [28900, "7/8\""], "26.0": [40200, "1\""]}
+    };
+
+    function setAlma(tipo) {
+        almaSelecionada = tipo;
+        document.getElementById('btnAF').className = tipo === 'AF' ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md' : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold';
+        document.getElementById('btnAA').className = tipo === 'AA' ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md' : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold';
+    }
+
+    function recomendarCabo() {
+        const peso = parseFloat(document.getElementById('pesoCarga').value);
+        const pernas = parseInt(document.getElementById('pernas').value);
+        const angulo = parseInt(document.getElementById('angulo').value);
+        if (!peso || peso <= 0) return alert("Insira o peso.");
+
+        const fAngulo = Math.cos(angulo * Math.PI / 180);
+        const fPernas = { 1: 1.0, 2: 1.4, 4: 2.1 };
+        const dados = tabelas[almaSelecionada];
+        let res = null;
+
+        for (let d in dados) {
+            let wll = (dados[d][0] / 5) * fAngulo * fPernas[pernas];
+            if (wll >= peso) { res = { mm: d, pol: dados[d][1], wll }; break; }
+        }
+        exibir(res);
+    }
+
+    function exibir(res) {
+        const card = document.getElementById('resultado-card');
+        card.classList.remove('hidden');
+        if (res) {
+            card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-green-50 border-green-200 text-green-900";
+            document.getElementById('msg-topo').innerText = "Cabo Recomendado";
+            document.getElementById('msg-diametro').innerText = `${res.mm}mm (${res.pol})`;
+            document.getElementById('msg-detalhe').innerText = `Capacidade: ${Math.round(res.wll)} kgf`;
+        } else {
+            card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-red-50 border-red-200 text-red-900";
+            document.getElementById('msg-topo').innerText = "Erro";
+            document.getElementById('msg-diametro').innerText = "Excedido";
+            document.getElementById('msg-detalhe').innerText = "Carga acima da tabela disponível.";
+        }
+    }
+
+    async function gerarPDF() {
+        const { jsPDF } = window.jspdf;
+        const card = document.getElementById('resultado-card');
+        const btn = document.getElementById('btnPDF');
+        btn.style.display = 'none';
+
+        const canvas = await html2canvas(card, { scale: 2 });
+        const img = canvas.toDataURL('image/png');
+        const pdf = new jsPDF();
+        
+        pdf.setFontSize(14);
+        pdf.text("RELATÓRIO DE DIMENSIONAMENTO", 105, 20, {align: 'center'});
+        pdf.setFontSize(10);
+        pdf.text(`Carga: ${document.getElementById('pesoCarga').value} kgf`, 20, 35);
+        pdf.text(`Configuração: ${document.getElementById('pernas').value} pernas a ${document.getElementById('angulo').value}°`, 20, 42);
+        
+        const imgW = 170;
+        const imgH = (canvas.height * imgW) / canvas.width;
+        pdf.addImage(img, 'PNG', 20, 55, imgW, imgH);
+        pdf.save("laudo-cabo.pdf");
+        btn.style.display = 'flex';
+    }
+</script>
+</body>
+</html>
