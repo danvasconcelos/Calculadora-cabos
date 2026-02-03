@@ -3,38 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dimensionador de Cabos de Aço - NBR ISO 2408</title>
 
-    <title>Dimensionador de Cabos de Aço</title>
-
-    <!-- ✅ CSP (Solução 2) -->
-    <meta http-equiv="Content-Security-Policy"
-    content="
-        default-src 'self';
-        style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
-        style-src-elem 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
-        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com;
-        img-src 'self' data:;
-        font-src 'self' data:;
-    ">
-
-    <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
 
-    <!-- PDF / Canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
 
-<body class="bg-slate-900 p-4 min-h-screen flex items-center justify-center font-sans">
+<body class="bg-slate-900 p-4 min-h-screen flex items-center justify-center">
 
-<div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden">
+<div class="max-w-md w-full bg-white rounded-3xl shadow-2xl overflow-hidden" id="app-container">
 
-    <div class="bg-blue-600 p-6 text-white">
-        <h1 class="text-xl font-bold uppercase tracking-wider text-center">
+    <div class="bg-blue-600 p-6 text-white text-center">
+        <h1 class="text-xl font-bold uppercase tracking-wider">
             Dimensionamento de Cabo
         </h1>
-        <p class="text-xs text-blue-100 text-center mt-1">
-            Baseado na NBR ISO 2408 | F.S. 5:1
+        <p class="text-xs text-blue-100 mt-1 opacity-80">
+            Cálculo Base: NBR ISO 2408 | Fator de Segurança 5:1
         </p>
     </div>
 
@@ -56,7 +47,7 @@
                 </label>
                 <select id="pernas"
                     class="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl
-                           outline-none focus:border-blue-500">
+                           outline-none focus:border-blue-500 font-semibold">
                     <option value="1">1 Perna</option>
                     <option value="2" selected>2 Pernas</option>
                     <option value="4">4 Pernas</option>
@@ -69,7 +60,7 @@
                 </label>
                 <select id="angulo"
                     class="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl
-                           outline-none focus:border-blue-500">
+                           outline-none focus:border-blue-500 font-semibold">
                     <option value="0">0° (Vertical)</option>
                     <option value="30">30°</option>
                     <option value="45">45°</option>
@@ -88,7 +79,7 @@
                     Fibra (AF)
                 </button>
                 <button onclick="setAlma('AA')" id="btnAA"
-                    class="flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold shadow-md transition-all">
+                    class="flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all">
                     Aço (AA)
                 </button>
             </div>
@@ -100,15 +91,16 @@
             VERIFICAR CABO IDEAL
         </button>
 
-        <div id="resultado-card"
+        <div id="resultadoCard"
              class="hidden mt-4 p-6 rounded-2xl border-2 text-center transition-all">
-            <p id="msg-topo" class="text-xs font-bold uppercase mb-1"></p>
-            <h2 id="msg-diametro" class="text-4xl font-black"></h2>
-            <p id="msg-detalhe" class="text-xs mt-2 opacity-80 leading-relaxed"></p>
+            <p id="msgTopo" class="text-xs font-bold uppercase mb-1"></p>
+            <h2 id="msgDiametro" class="text-4xl font-black"></h2>
+            <p id="msgDetalhe" class="text-xs mt-2 opacity-80 leading-relaxed"></p>
 
             <button onclick="gerarPDF()" id="btnPDF"
-                class="mt-6 w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
-                SALVAR RELATÓRIO PDF
+                class="mt-6 w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl 
+                       transition-all flex items-center justify-center gap-2">
+                <span>📥</span> SALVAR RELATÓRIO PDF
             </button>
         </div>
 
@@ -118,6 +110,7 @@
 <script>
 let almaSelecionada = 'AF';
 
+// Dados: [Carga de Ruptura Mínima kgf, Polegadas]
 const tabelas = {
     AF: {
         "6.4": [2320, "1/4\""], "8.0": [3610, "5/16\""], "9.5": [5080, "3/8\""],
@@ -135,58 +128,125 @@ const tabelas = {
 
 function setAlma(tipo) {
     almaSelecionada = tipo;
-    btnAF.className = tipo === 'AF'
-        ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all'
-        : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
+    const btnAF = document.getElementById('btnAF');
+    const btnAA = document.getElementById('btnAA');
 
-    btnAA.className = tipo === 'AA'
-        ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all'
-        : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
+    if (tipo === 'AF') {
+        btnAF.className = 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all';
+        btnAA.className = 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
+    } else {
+        btnAA.className = 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all';
+        btnAF.className = 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
+    }
 }
 
 function recomendarCabo() {
-    const peso = +pesoCarga.value;
-    const pernas = +document.getElementById('pernas').value;
-    const angulo = +document.getElementById('angulo').value;
-    const fs = 5;
-
-    if (peso <= 0) return alert("Informe um peso válido.");
-
-    const fatorAngulo = Math.cos(angulo * Math.PI / 180);
-    const fatorPernas = {1:1, 2:1.4, 4:2.1};
-
-    let res = null;
-    for (let d in tabelas[almaSelecionada]) {
-        const [mbl, pol] = tabelas[almaSelecionada][d];
-        const wll = (mbl / fs) * fatorAngulo * fatorPernas[pernas];
-        if (wll >= peso) { res = {d, pol, wll}; break; }
+    const pesoVal = document.getElementById('pesoCarga').value;
+    const pernas = parseInt(document.getElementById('pernas').value);
+    const anguloDeg = parseInt(document.getElementById('angulo').value);
+    const resCard = document.getElementById('resultadoCard');
+    
+    if (!pesoVal || pesoVal <= 0) {
+        alert("Por favor, insira um peso válido.");
+        return;
     }
 
-    resultado-card.classList.remove('hidden');
-    if (res) {
-        resultado-card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-green-50 border-green-200";
-        msg-topo.innerText = "Cabo Recomendado";
-        msg-diametro.innerText = `${res.d} mm (${res.pol})`;
-        msg-detalhe.innerText = `Capacidade admissível ≈ ${Math.round(res.wll)} kgf`;
+    const peso = parseFloat(pesoVal);
+    const fs = 5;
+
+    // Fator de eficiência conforme ângulo e número de pernas
+    // O cosseno reduz a capacidade conforme o ângulo aumenta em relação à vertical
+    const rad = anguloDeg * (Math.PI / 180);
+    const fatorAngulo = Math.cos(rad);
+    
+    // Fatores de modo (Multiplicador de carga para lingas conforme normas de segurança)
+    const fatoresPernas = { 1: 1.0, 2: 1.4, 4: 2.1 };
+    
+    let recomendacao = null;
+
+    // Procura na tabela o primeiro cabo que suporte a carga
+    for (let diametro in tabelas[almaSelecionada]) {
+        const [mbl, pol] = tabelas[almaSelecionada][diametro];
+        
+        // Capacidade Admissível (WLL) = (Ruptura / FS) * Fator de Pernas * Cosseno do Ângulo
+        const wll = (mbl / fs) * (fatoresPernas[pernas] * fatorAngulo);
+
+        if (wll >= peso) {
+            recomendacao = { diametro, pol, wll, mbl };
+            break;
+        }
+    }
+
+    // Exibição do Resultado
+    resCard.classList.remove('hidden');
+    const msgTopo = document.getElementById('msgTopo');
+    const msgDiametro = document.getElementById('msgDiametro');
+    const msgDetalhe = document.getElementById('msgDetalhe');
+    const btnPDF = document.getElementById('btnPDF');
+
+    if (recomendacao) {
+        resCard.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-green-50 border-green-200";
+        msgTopo.innerText = "Cabo Recomendado";
+        msgTopo.className = "text-xs font-bold uppercase mb-1 text-green-700";
+        msgDiametro.innerText = `${recomendacao.diametro} mm (${recomendacao.pol})`;
+        msgDiametro.className = "text-4xl font-black text-green-900";
+        msgDetalhe.innerText = `Este cabo suporta até ${Math.round(recomendacao.wll)} kgf nesta configuração (F.S. 5:1).`;
         btnPDF.style.display = "flex";
     } else {
-        resultado-card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-red-50 border-red-200";
-        msg-topo.innerText = "Atenção";
-        msg-diametro.innerText = "Limite Excedido";
-        msg-detalhe.innerText = "Nenhum cabo atende aos parâmetros.";
+        resCard.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-red-50 border-red-200";
+        msgTopo.innerText = "Atenção";
+        msgTopo.className = "text-xs font-bold uppercase mb-1 text-red-700";
+        msgDiametro.innerText = "Excedido";
+        msgDiametro.className = "text-4xl font-black text-red-900";
+        msgDetalhe.innerText = "Carga muito alta. Reduza o peso ou aumente o número de pernas.";
         btnPDF.style.display = "none";
     }
 }
 
 async function gerarPDF() {
     const { jsPDF } = window.jspdf;
-    const canvas = await html2canvas(document.getElementById('resultado-card'), { scale: 2 });
-    const img = canvas.toDataURL("image/png");
+    const elemento = document.getElementById('resultadoCard');
+    
+    // Esconde o botão de PDF temporariamente para não sair na "foto"
+    const btn = document.getElementById('btnPDF');
+    btn.style.opacity = "0";
 
-    const pdf = new jsPDF();
-    pdf.text("RELATÓRIO DE DIMENSIONAMENTO", 105, 20, { align: "center" });
-    pdf.addImage(img, "PNG", 20, 40, 170, 0);
-    pdf.save("dimensionamento_cabo.pdf");
+    const canvas = await html2canvas(elemento, { 
+        scale: 2,
+        backgroundColor: "#F0FDF4" // Cor de fundo do card green-50
+    });
+    
+    btn.style.opacity = "1";
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    
+    // Cabeçalho do PDF
+    pdf.setFontSize(16);
+    pdf.setTextColor(0, 51, 153);
+    pdf.text("Relatório de Dimensionamento de Cabos", 105, 20, { align: "center" });
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(100);
+    pdf.text(`Data: ${new Date().toLocaleDateString('pt-BR')} | Norma: NBR ISO 2408`, 105, 28, { align: "center" });
+
+    // Informações Técnicas
+    pdf.setFontSize(11);
+    pdf.setTextColor(0);
+    pdf.text(`Carga Informada: ${document.getElementById('pesoCarga').value} kgf`, 20, 45);
+    pdf.text(`Configuração: ${document.getElementById('pernas').value} perna(s) a ${document.getElementById('angulo').value}°`, 20, 52);
+    pdf.text(`Tipo de Alma: ${almaSelecionada === 'AF' ? 'Fibra (AF)' : 'Aço (AA)'}`, 20, 59);
+
+    // Linha divisória
+    pdf.setDrawColor(200);
+    pdf.line(20, 65, 190, 65);
+
+    // Adiciona o card como imagem centralizada
+    const imgProps = pdf.getImageProperties(imgData);
+    const pdfWidth = 120;
+    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+    pdf.addImage(imgData, "PNG", (210 - pdfWidth) / 2, 75, pdfWidth, pdfHeight);
+
+    pdf.save("relatorio-cabo-de-aco.pdf");
 }
 </script>
 
