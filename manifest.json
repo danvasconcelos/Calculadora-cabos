@@ -2,13 +2,13 @@
   "name": "Dimensionador de Cabos",
   "short_name": "CaboAço",
   "description": "Cálculo de dimensionamento NBR ISO 2408",
-  "start_url": "index.html",
+  "start_url": ".",
   "display": "standalone",
   "background_color": "#0f172a",
   "theme_color": "#2563eb",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/2343/2343494.png",
+      "src": "https://cdn-icons-png.flaticon.com/512/1037/1037308.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -17,3 +17,4 @@
 }
 
 }
+
