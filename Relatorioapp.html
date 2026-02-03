@@ -3,8 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Dimensionador de Cabos de Aço</title>
+
+    <!-- ✅ CSP (Solução 2) -->
+    <meta http-equiv="Content-Security-Policy"
+    content="
+        default-src 'self';
+        style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+        style-src-elem 'self' 'unsafe-inline' https://cdn.tailwindcss.com;
+        script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com;
+        img-src 'self' data:;
+        font-src 'self' data:;
+    ">
+
+    <!-- Tailwind CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- PDF / Canvas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -89,12 +105,9 @@
             <p id="msg-topo" class="text-xs font-bold uppercase mb-1"></p>
             <h2 id="msg-diametro" class="text-4xl font-black"></h2>
             <p id="msg-detalhe" class="text-xs mt-2 opacity-80 leading-relaxed"></p>
-            
+
             <button onclick="gerarPDF()" id="btnPDF"
                 class="mt-6 w-full bg-gray-800 hover:bg-black text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
                 SALVAR RELATÓRIO PDF
             </button>
         </div>
@@ -106,13 +119,13 @@
 let almaSelecionada = 'AF';
 
 const tabelas = {
-    'AF': {
+    AF: {
         "6.4": [2320, "1/4\""], "8.0": [3610, "5/16\""], "9.5": [5080, "3/8\""],
         "11.5": [7410, "7/16\""], "13.0": [9480, "1/2\""], "14.5": [11700, "9/16\""],
         "16.0": [14300, "5/8\""], "19.0": [20100, "3/4\""], "22.0": [26900, "7/8\""],
         "26.0": [37400, "1\""]
     },
-    'AA': {
+    AA: {
         "6.4": [2500, "1/4\""], "8.0": [3880, "5/16\""], "9.5": [5460, "3/8\""],
         "11.5": [7960, "7/16\""], "13.0": [10200, "1/2\""], "14.5": [12600, "9/16\""],
         "16.0": [15400, "5/8\""], "19.0": [21600, "3/4\""], "22.0": [28900, "7/8\""],
@@ -122,108 +135,58 @@ const tabelas = {
 
 function setAlma(tipo) {
     almaSelecionada = tipo;
-    document.getElementById('btnAF').className = tipo === 'AF' ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all' : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
-    document.getElementById('btnAA').className = tipo === 'AA' ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all' : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
+    btnAF.className = tipo === 'AF'
+        ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all'
+        : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
+
+    btnAA.className = tipo === 'AA'
+        ? 'flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-md transition-all'
+        : 'flex-1 py-3 bg-gray-200 text-gray-600 rounded-xl font-bold transition-all';
 }
 
 function recomendarCabo() {
-    const pesoCarga = parseFloat(document.getElementById('pesoCarga').value);
-    const pernas = parseInt(document.getElementById('pernas').value);
-    const angulo = parseInt(document.getElementById('angulo').value);
+    const peso = +pesoCarga.value;
+    const pernas = +document.getElementById('pernas').value;
+    const angulo = +document.getElementById('angulo').value;
     const fs = 5;
 
-    if (!pesoCarga || pesoCarga <= 0) {
-        alert("Informe um peso válido.");
-        return;
-    }
+    if (peso <= 0) return alert("Informe um peso válido.");
 
     const fatorAngulo = Math.cos(angulo * Math.PI / 180);
-    const fatorPernas = { 1: 1.0, 2: 1.4, 4: 2.1 };
+    const fatorPernas = {1:1, 2:1.4, 4:2.1};
 
-    const dados = tabelas[almaSelecionada];
-    let resultado = null;
-
-    for (let d in dados) {
-        const mbl = dados[d][0];
-        const pol = dados[d][1]
+    let res = null;
+    for (let d in tabelas[almaSelecionada]) {
+        const [mbl, pol] = tabelas[almaSelecionada][d];
         const wll = (mbl / fs) * fatorAngulo * fatorPernas[pernas];
-
-        if (wll >= pesoCarga) {
-            resultado = { mm: d, pol, wll, mbl };
-            break;
-        }
+        if (wll >= peso) { res = {d, pol, wll}; break; }
     }
-    exibirResultado(resultado);
-}
 
-function exibirResultado(res) {
-    const card = document.getElementById('resultado-card');
-    const topo = document.getElementById('msg-topo');
-    const diam = document.getElementById('msg-diametro');
-    const det = document.getElementById('msg-detalhe');
-
-    card.classList.remove('hidden');
-
+    resultado-card.classList.remove('hidden');
     if (res) {
-        card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-green-50 border-green-200 text-green-900 shadow-inner";
-        topo.innerText = "Cabo Recomendado";
-        diam.innerText = `${res.mm} mm (${res.pol})`;
-        det.innerText = `Capacidade admissível ≈ ${Math.round(res.wll)} kgf (Considerando Ângulo e Pernas).`;
-        document.getElementById('btnPDF').style.display = 'flex';
+        resultado-card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-green-50 border-green-200";
+        msg-topo.innerText = "Cabo Recomendado";
+        msg-diametro.innerText = `${res.d} mm (${res.pol})`;
+        msg-detalhe.innerText = `Capacidade admissível ≈ ${Math.round(res.wll)} kgf`;
+        btnPDF.style.display = "flex";
     } else {
-        card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-red-50 border-red-200 text-red-900 shadow-inner";
-        topo.innerText = "Atenção";
-        diam.innerText = "Limite Excedido";
-        det.innerText = "Nenhum cabo da base atende a carga com os parâmetros informados.";
-        document.getElementById('btnPDF').style.display = 'none';
+        resultado-card.className = "mt-4 p-6 rounded-2xl border-2 text-center bg-red-50 border-red-200";
+        msg-topo.innerText = "Atenção";
+        msg-diametro.innerText = "Limite Excedido";
+        msg-detalhe.innerText = "Nenhum cabo atende aos parâmetros.";
+        btnPDF.style.display = "none";
     }
 }
 
 async function gerarPDF() {
     const { jsPDF } = window.jspdf;
-    const btnPdf = document.getElementById('btnPDF');
-    const peso = document.getElementById('pesoCarga').value;
-    const pernas = document.getElementById('pernas').value;
-    const angulo = document.getElementById('angulo').value;
-    
-    // Oculta o botão antes do print
-    btnPdf.style.visibility = 'hidden';
+    const canvas = await html2canvas(document.getElementById('resultado-card'), { scale: 2 });
+    const img = canvas.toDataURL("image/png");
 
-    const card = document.getElementById('resultado-card');
-    
-    try {
-        const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#f0fdf4' });
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF();
-
-        // Estilização do PDF
-        pdf.setFont("helvetica", "bold");
-        pdf.text("RELATÓRIO DE DIMENSIONAMENTO", 105, 20, { align: "center" });
-        
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-        pdf.text(`Data: ${new Date().toLocaleString()}`, 20, 35);
-        
-        // Dados de Entrada
-        pdf.line(20, 38, 190, 38);
-        pdf.text(`Peso da Carga: ${peso} kgf`, 20, 45);
-        pdf.text(`Número de Pernas: ${pernas}`, 20, 50);
-        pdf.text(`Ângulo de Inclinação: ${angulo}°`, 20, 55);
-        pdf.text(`Tipo de Alma: ${almaSelecionada === 'AF' ? 'Fibra' : 'Aço'}`, 20, 60);
-        pdf.line(20, 65, 190, 65);
-
-        // Adiciona imagem do resultado
-        const imgProps = pdf.getImageProperties(imgData);
-        const pdfWidth = pdf.internal.pageSize.getWidth() - 40;
-        const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-        pdf.addImage(imgData, 'PNG', 20, 75, pdfWidth, pdfHeight);
-
-        pdf.save(`Cabo_${peso}kgf.pdf`);
-    } catch (e) {
-        alert("Erro ao gerar PDF");
-    } finally {
-        btnPdf.style.visibility = 'visible';
-    }
+    const pdf = new jsPDF();
+    pdf.text("RELATÓRIO DE DIMENSIONAMENTO", 105, 20, { align: "center" });
+    pdf.addImage(img, "PNG", 20, 40, 170, 0);
+    pdf.save("dimensionamento_cabo.pdf");
 }
 </script>
 
